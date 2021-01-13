@@ -73,7 +73,7 @@ class WFRRDInterp:
         C = np.sum(_a) * np.sum(_b) / (np.linalg.norm(s1.sentence_vector) * np.linalg.norm(s2.sentence_vector) + 1e-3)
         prior = a.reshape(-1, 1).dot(b.reshape(1, -1))
         M_prior = _M - self.coef_P * np.log(prior)
-        P = ot.unbalanced.sinkhorn_unbalanced(a, b, M_prior, reg=self.coef_P, reg_m=1, method="sinkhorn_stabilized")
+        P = ot.unbalanced.sinkhorn_unbalanced(a, b, M_prior, reg=self.coef_P, reg_m=10, method="sinkhorn_stabilized")
         ans = (1 - np.sum(P * _M)) * (1 - self.coef_C + self.coef_C * C)
         # assert ans < 1
         return ans
@@ -98,7 +98,6 @@ class WRDInterp:
         self.coef_P = coef_P
 
     def __call__(self, s1, s2):
-
         M = cosine(s1.vectors, s2.vectors)
         _a = np.asarray([np.linalg.norm(v) * w for v, w in zip(s1.vectors, s1.weights)])
         a = _a / np.sum(_a)
@@ -106,15 +105,18 @@ class WRDInterp:
         b = _b / np.sum(_b)
         C = np.sum(_a) * np.sum(_b) / (np.linalg.norm(s1.sentence_vector) * np.linalg.norm(s2.sentence_vector) + 1e-3)
         prior = a.reshape(-1, 1).dot(b.reshape(1, -1))
-        M_prior = M - self.coef_P * np.log(prior)
-        P = ot.sinkhorn(a, b, M_prior, reg=self.coef_P, method="sinkhorn_stabilized")
+        if self.coef_P > 0:
+            M_prior = M - self.coef_P * np.log(prior)
+            P = ot.sinkhorn(a, b, M_prior, reg=self.coef_P, method="sinkhorn_stabilized")
+        else:
+            P = ot.emd(a, b, M)
         ans = (1 - np.sum(P * M)) * (1 - self.coef_C + self.coef_C * C)
         # assert ans < 1
         return ans
 
 
 class ROTS:
-    def __init__(self, parser='binary', depth=5, preg=10, creg=0, ereg=0, coef_C=1, aggregation='mean', **kwargs):
+    def __init__(self, parser='binary', depth=5, preg=2, creg=0, ereg=0, coef_C=1, aggregation='last', **kwargs):
         """
         Args:
             parser: type of parsers, in ['dependency', 'binary']
@@ -130,7 +132,8 @@ class ROTS:
         if isinstance(preg, list):
             self.prior_reg = preg
         else:
-            self.prior_reg = [preg for i in range(depth)]
+            self.prior_reg = [2 ** (i) for i in range(depth)]
+            # self.prior_reg = [32 for i in range(depth)]
         self.creg = creg
         self.ereg = ereg
         self.coef_C = coef_C

@@ -4,7 +4,7 @@ from collections import defaultdict
 import numpy as np
 from sklearn.decomposition import TruncatedSVD
 import spacy
-from benepar.spacy_plugin import BeneparComponent
+# from benepar.spacy_plugin import BeneparComponent
 from time import time
 
 nlp = spacy.load('en_core_web_sm')
@@ -239,14 +239,23 @@ class GeneralPCompRemoval:
             return
 
         sent_vec_list = []
+        reduced_sentences = []
         for sent in dataset.sentences:
-            words = [dataset.word_dict[t] for t in sent]
-            sent_vec = 0
+            tokens = []
+            words = []
+            for t in sent:
+                if dataset.word_dict[t] in word_vector:
+                    tokens.append(t)
+                    words.append(dataset.word_dict[t])
+            reduced_sentences.append(tokens)
 
+            sent_vec = 0
             word_vector_list = self.scaling([word_vector[w] for w in words])
             for i, w in enumerate(words):
-                sent_vec += word_vector_list[i] * weight_scheme[w] / len(sent)
+                sent_vec += word_vector_list[i] * weight_scheme[w] / len(words)
             sent_vec_list.append(sent_vec)
+
+        dataset.sentences = reduced_sentences
 
         if self.n_comp > 0:
             sent_vectors = np.asarray(sent_vec_list)
@@ -259,7 +268,8 @@ class GeneralPCompRemoval:
                 self.p_comp_i.append(svd.components_[i])
 
     def get_sentence(self, token_list, word_vector, weight_scheme, dataset):
-        words = [dataset.word_dict[t] for t in token_list]
+        words = [dataset.word_dict[t] for t in token_list if dataset.word_dict[t] in word_vector]
+        assert len(words) == len(token_list)
         vectors = self.scaling([word_vector[w] for w in words])
         weights = [weight_scheme[w] / len(words) for w in words]
         sum_weights = sum(weights)

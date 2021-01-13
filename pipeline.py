@@ -81,9 +81,10 @@ class Pipeline:
 
     def run(self):
         yt, yp = self._evaluate_over_datasets()
-        scores = self._evaluation_score(yt, yp)
-        print(scores)
-        return scores
+        l, s, r = self._evaluation_score(yt, yp)
+        print("[{:.2f}, {:.2f}, {:.2f}]".format(l*100, s*100, r*100))
+
+        return l, s, r
 
 
 if __name__ == "__main__":

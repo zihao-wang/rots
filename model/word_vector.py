@@ -76,7 +76,7 @@ class Word2Vector:
                     break
 
     def __getitem__(self, w):
-        return self.vectors.get(w.lower(), np.zeros(300))
+        return self.vectors[w]
 
     def __contains__(self, w):
         return w in self.vectors

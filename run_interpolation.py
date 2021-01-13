@@ -44,7 +44,7 @@ if __name__ == "__main__":
         base_config = get_base_config()
         base_config['word_vector']['word_vector'] = wv
         for coef_C in np.linspace(0, 1, 11).tolist():
-            for coef_P in np.logspace(-1, 3, 10, endpoint=False).tolist() + np.linspace(1000, 10000, num=10).tolist():
+            for coef_P in [0] + np.logspace(-1, 3, 10, endpoint=False).tolist():
                 base_config['similarity']['coef_C'] = coef_C
                 base_config['similarity']['coef_P'] = coef_P
                 p = Pipeline(base_config)
