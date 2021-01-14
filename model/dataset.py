@@ -15,15 +15,16 @@ not_punc = re.compile('.*[A-Za-z0-9].*')
 
 
 dataset_path_dict = {
-    "stsb-test": "dataset/STSBenchmark/sts-test.csv",
-    "stsb-dev": "dataset/STSBenchmark/sts-dev.csv",
-    "twitter-test": "dataset/SemEval-PIT2015-github/data/test.data",
-    "sick-r": "dataset/STS/SICK-data/SICK_test_annotated.txt",
-    "sts-2012": "dataset/STS/STS-data/STS2012-gold",
-    "sts-2013": "dataset/STS/STS-data/STS2013-gold",
-    "sts-2014": "dataset/STS/STS-data/STS2014-gold",
-    "sts-2015": "dataset/STS/STS-data/STS2015-gold",
-    "sts-2016": "dataset/STS/STS-data/STS2016-gold",
+    "stsb:test": "dataset/STSBenchmark/sts-test.csv",
+    "stsb:dev": "dataset/STSBenchmark/sts-dev.csv",
+    "twitter:test": "dataset/SemEval-PIT2015-github/data/test.data",
+    "sick:r": "dataset/STS/SICK-data/SICK_test_annotated.txt",
+    "sts:2012": "dataset/STS/STS-data/STS2012-gold",
+    "sts:2013": "dataset/STS/STS-data/STS2013-gold",
+    "sts:2014": "dataset/STS/STS-data/STS2014-gold",
+    "sts:2015": "dataset/STS/STS-data/STS2015-gold",
+    # "sts-2016": "dataset/STS/STS-data/STS2016-gold",
+    "sts:2016": "dataset/STS/STS-data/STS16-en-test",
 }
 
 sts_tasks= {
@@ -78,10 +79,11 @@ class Dataset:
         return len(self.pairs)
 
     def load(self):
-        path = dataset_path_dict[self.dataset]
+        dataset_identifier = ":".join(self.dataset.split(":")[:2])
+        path = dataset_path_dict[dataset_identifier]
         print('[dataset][load] load dataset: {} from path:\n {}'.format(
             self.dataset, path))
-        if self.dataset.split('-')[0] == "stsb":
+        if self.dataset.split(':')[0] == "stsb":
             with open(os.path.join(path), encoding='utf8', mode='rt') as f:
                 for line in f.readlines():
                     try:
@@ -91,7 +93,7 @@ class Dataset:
                     except:
                         print("parse failed: line content {}".format(line))
                         pass
-        elif self.dataset.split('-')[0] == 'twitter':
+        elif self.dataset.split(':')[0] == 'twitter':
             with open(os.path.join(path), encoding='utf8', mode='rt') as f:
                 for line in f.readlines():
                     try:
@@ -101,7 +103,7 @@ class Dataset:
                     except:
                         print("parse failed: line content {}".format(line))
                         pass
-        elif self.dataset == 'sick':
+        elif self.dataset.split(':')[0] == 'sick':
             with open(os.path.join(path), encoding='utf8', mode='rt') as f:
                 for line in f.readlines():
                     try:
@@ -111,22 +113,42 @@ class Dataset:
                     except:
                         print("parse failed: line content {}".format(line))
                         pass
-        elif self.dataset.split('-')[0] == 'sts':
-            test_fns = filter(lambda fn: '.input.' in fn and fn.endswith('txt'),
-                              os.listdir(path))
-            for fn in test_fns:
+        elif self.dataset.split(':')[0] == 'sts':
+            names = self.dataset.split(':')
+            if len(names) == 2:
+                test_fns = filter(lambda fn: '.input.' in fn and fn.endswith('txt'),
+                                os.listdir(path))
+                for fn in test_fns:
+                    sentf = open(os.path.join(path, fn), encoding='utf8', mode='rt')
+                    sfn = fn.replace('input', 'gs')
+                    scoref = open(os.path.join(path, sfn), encoding='utf8', mode='rt')
+                    for line in sentf.readlines():
+                        s1, s2 = line.strip().split('\t')[:2]
+                        self.raw_sentences.extend([s1, s2])
+                    for line in scoref.readlines():
+                        try:
+                            similarity = float(line.strip())
+                        except:
+                            similarity = 0
+                        self.scores.append(similarity)
+                    sentf.close()
+                    scoref.close()
+            if len(names) == 3:
+                _, year, task = names
+                assert task in sts_tasks[year]
+                fn = "STS.input.{}.txt".format(task)
                 sentf = open(os.path.join(path, fn), encoding='utf8', mode='rt')
                 sfn = fn.replace('input', 'gs')
                 scoref = open(os.path.join(path, sfn), encoding='utf8', mode='rt')
-                for line in sentf.readlines():
-                    s1, s2 = line.strip().split('\t')[:2]
-                    self.raw_sentences.extend([s1, s2])
-                for line in scoref.readlines():
-                    try:
-                        similarity = float(line.strip())
-                    except:
-                        similarity = 0
-                    self.scores.append(similarity)
+                sent_line = [line.strip().split('\t')[:2]
+                             for line in sentf.readlines()]
+                score_line = [line for line in scoref.readlines()]
+                for (s1, s2), s in zip(sent_line, score_line):
+                    if s.strip() != "":
+                        self.raw_sentences.extend([s1, s2])
+                        self.scores.append(float(s))
+                    else:
+                        print('skip', s1, s2, s)
                 sentf.close()
                 scoref.close()
 

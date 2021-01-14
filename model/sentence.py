@@ -204,9 +204,11 @@ class Sentence:
             for i, tsp in enumerate(self.tree_level_span_flat[l-1]):
                 tb, te, _ = tsp
                 db, de, _ = down_span_flat[j]
-                while tb < db and de < te:
+                while tb <= db and de <= te:
                     top_down_link[i].append(j)
                     j += 1
+                    if j >= len(down_span_flat): break
+                    db, de, _ = down_span_flat[j]
             return vectors, weights, top_down_link
         else:
             return vectors, weights, {}

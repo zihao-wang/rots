@@ -4,13 +4,13 @@ import pickle
 
 
 VectorNames = {
-    "paragram": "vectors/paragram_300_sl999/paragram_300_sl999.txt",
+    "psl": "vectors/paragram_300_sl999/paragram_300_sl999.txt",
     "fasttext": "vectors/crawl-300d-2M.vec",
     "fasttext_sw": "vectors/crawl-300d-2M-subword.vec",
     "paranmt": "vectors/czeng.txt",
     "glove840b": "vectors/glove.840B.300d.txt",
     "glove42b": "vectors/glove.840B.300d.txt",
-    "psl": "vectors/psl.txt"
+    # "psl_small": "vectors/psl.txt"
 }
 
 
@@ -22,7 +22,7 @@ def get_word_vector(word_vector, **kwargs):
 
 
 class Word2Vector:
-    def __init__(self, vector_name, max_number=-1):
+    def __init__(self, vector_name, max_number=-1, ops=""):
         """Initialize a word2vec object.
 
         Args:
@@ -32,6 +32,7 @@ class Word2Vector:
         self.vectors = {}
         self.vector_fn = VectorNames[vector_name]
         self.max_number = max_number
+        self.ops = ops
 
     def save_to_file(self, path):
         print("[Word2Vector] save word vector to file {}".format(path))
@@ -74,6 +75,8 @@ class Word2Vector:
                 self.vectors[word] = embedding[:300]
                 if 0 < self.max_number == len(self.vectors):
                     break
+
+
 
     def __getitem__(self, w):
         return self.vectors[w]

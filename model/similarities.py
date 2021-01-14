@@ -132,7 +132,7 @@ class ROTS:
         if isinstance(preg, list):
             self.prior_reg = preg
         else:
-            self.prior_reg = [2 ** (i) for i in range(depth)]
+            self.prior_reg = [preg * (i+1) for i in range(depth)]
             # self.prior_reg = [32 for i in range(depth)]
         self.creg = creg
         self.ereg = ereg
@@ -142,7 +142,7 @@ class ROTS:
     def __call__(self, s1: Sentence, s2: Sentence):
         s1.parse(self.parser)
         s2.parse(self.parser)
-        # depth = min(max(len(s1.tree_level_index), len(s2.tree_level_index)), self.depth)
+        _depth = min(max(len(s1.tree_level_index), len(s2.tree_level_index)), self.depth)
         depth = self.depth
         answer = {}  # d, alignment score
         transport_plan = {}
@@ -169,10 +169,12 @@ class ROTS:
                             for dj in tdlink2[tj]:
                                 prior_plan_down[di, dj] = mass * _a[di] * _b[dj] / local_a / local_b
             else:
-                prior_plan_down = np.ones_like(cos_prior) / len(a) / len(b)
+                # print(d)
+                prior_plan_down = cos_prior
             M = M_cossim - np.log(cos_prior + 1e-10) * self.creg - np.log(prior_plan_down + 1e-10) * self.prior_reg[d]
             reg = self.creg + self.prior_reg[d] + self.ereg
             P = ot.sinkhorn(a, b, M, reg, method='sinkhorn_stabilized')
+            transport_plan[d] = P
             answer[d] = (1 - np.sum(P * M_cossim)) * (1 - self.coef_C + self.coef_C * C)
 
         if self.aggregation == 'mean':
@@ -183,6 +185,12 @@ class ROTS:
             return np.min(list(answer.values()))
         elif self.aggregation == 'last':
             return answer[depth-1]
+        elif self.aggregation == 'all':
+            answer['mean'] = np.mean(list(answer.values()))
+            answer['max'] = np.max(list(answer.values()))
+            answer['min'] = np.min(list(answer.values()))
+            answer['last'] = answer[_depth-1]
+            return answer
         else:
             return answer
 
