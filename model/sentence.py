@@ -240,7 +240,7 @@ class GeneralPCompRemoval:
 
         sent_vec_list = []
         reduced_sentences = []
-        for sent in dataset.sentences:
+        for i, sent in enumerate(dataset.sentences):
             tokens = []
             words = []
             for t in sent:
@@ -249,7 +249,9 @@ class GeneralPCompRemoval:
                     words.append(dataset.word_dict[t])
             reduced_sentences.append(tokens)
 
-            sent_vec = 0
+
+
+            sent_vec = np.zeros(300)
             word_vector_list = self.scaling([word_vector[w] for w in words])
             for i, w in enumerate(words):
                 sent_vec += word_vector_list[i] * weight_scheme[w] / len(words)

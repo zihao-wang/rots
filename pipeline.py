@@ -33,7 +33,7 @@ class Pipeline:
         config can be a dict or a string that indicates the config file
         """
         self.config = get_config(pipeline_config)
-        pprint(self.config)
+        # pprint(self.config)
         # get word vectors accordingly
         self.word_vector = get_word_vector(**self.config['word_vector'])
         self.word_weight = get_weight_scheme(self.config['weight_scheme'])
@@ -70,6 +70,32 @@ class Pipeline:
             return y_true, y_pred_dict
         else:
             return y_true, y_pred
+
+    def inference(self):
+        y_pred = []
+        id_list = []
+        for s1, s2, i in tqdm(self.dataset.pairs):
+            sent1 = self.sentence_parser.get_sentence(token_list=self.dataset.sentences[s1],
+                                                      word_vector=self.word_vector,
+                                                      weight_scheme=self.word_weight,
+                                                      dataset=self.dataset)
+            sent2 = self.sentence_parser.get_sentence(token_list=self.dataset.sentences[s2],
+                                                      word_vector=self.word_vector,
+                                                      weight_scheme=self.word_weight,
+                                                      dataset=self.dataset)
+
+            yp = self.similarity(sent1, sent2)
+            # assert yp < 1
+            y_pred.append(yp)
+            id_list.append(i)
+
+        if isinstance(y_pred[0], dict):
+            y_pred_dict = {}
+            for i in y_pred[0]:
+                y_pred_dict[str(i)] = [yp[i] for yp in y_pred]
+            return y_pred_dict, id_list
+        else:
+            return y_pred, id_list
 
     def _evaluation_score(self, y_true:list, y_pred:list, option:str=""):
         if isinstance(y_pred, list):

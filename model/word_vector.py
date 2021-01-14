@@ -5,11 +5,11 @@ import pickle
 
 VectorNames = {
     "psl": "vectors/paragram_300_sl999/paragram_300_sl999.txt",
-    "fasttext": "vectors/crawl-300d-2M.vec",
-    "fasttext_sw": "vectors/crawl-300d-2M-subword.vec",
     "paranmt": "vectors/czeng.txt",
+    "fasttext": "vectors/crawl-300d-2M.vec",
+    # "fasttext_sw": "vectors/crawl-300d-2M-subword.vec",
     "glove840b": "vectors/glove.840B.300d.txt",
-    "glove42b": "vectors/glove.840B.300d.txt",
+    # "glove42b": "vectors/glove.840B.300d.txt",
     "word2vec": "vectors/GoogleNews-vectors-negative300.txt"
     # "psl_small": "vectors/psl.txt"
 }

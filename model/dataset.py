@@ -3,6 +3,7 @@ import spacy
 import os
 import re
 from tqdm import tqdm
+import pandas as pd
 
 nlp = spacy.load('en_core_web_sm')
 
@@ -113,6 +114,11 @@ class Dataset:
                     except:
                         print("parse failed: line content {}".format(line))
                         pass
+        elif self.dataset.split(':')[0] == 'kaggle':
+            df = pd.read_csv(path)
+            for _, (i, s1, s2) in df.iterrows():
+                self.scores.append(int(i))
+                self.raw_sentences.extend([s1, s2])
         elif self.dataset.split(':')[0] == 'sts':
             names = self.dataset.split(':')
             if len(names) == 2:
