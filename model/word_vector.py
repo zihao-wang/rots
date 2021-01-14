@@ -10,6 +10,7 @@ VectorNames = {
     "paranmt": "vectors/czeng.txt",
     "glove840b": "vectors/glove.840B.300d.txt",
     "glove42b": "vectors/glove.840B.300d.txt",
+    "word2vec": "vectors/GoogleNews-vectors-negative300.txt"
     # "psl_small": "vectors/psl.txt"
 }
 
