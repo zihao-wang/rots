@@ -1,15 +1,16 @@
 import json
 import numpy
 import os
-# import yaml
+import yaml
 
 from tqdm import tqdm
-
+from pprint import pprint
 from model import (get_dataset,
                    get_similarity, get_vector_convertor, get_weight_scheme,
                    get_word_vector, get_sentence_parser)
 from scipy.stats import pearsonr
 import scikits.bootstrap as boot
+
 
 def get_config(config_file):
     if isinstance(config_file, dict):
@@ -18,15 +19,21 @@ def get_config(config_file):
         with open(config_file, 'rt') as f:
             if config_file.endswith('json'):
                 config = json.load(f)
+            elif config_file.endswith('yaml'):
+                with open(config_file, 'rt') as f:
+                    config = yaml.load(f, Loader=yaml.FullLoader)
             else:
                 raise NotImplementedError
         return config
 
 
 class Pipeline:
-    def __init__(self, pipeline_config:str):
+    def __init__(self, pipeline_config):
+        """
+        config can be a dict or a string that indicates the config file
+        """
         self.config = get_config(pipeline_config)
-
+        pprint(self.config)
         # get word vectors accordingly
         self.word_vector = get_word_vector(**self.config['word_vector'])
         self.word_weight = get_weight_scheme(self.config['weight_scheme'])
@@ -56,17 +63,30 @@ class Pipeline:
             yp = self.similarity(sent1, sent2)
             # assert yp < 1
             y_pred.append(yp)
-        return y_true, y_pred
+        if isinstance(y_pred[0], dict):
+            y_pred_dict = {}
+            for i in y_pred[0]:
+                y_pred_dict[str(i)] = [yp[i] for yp in y_pred]
+            return y_true, y_pred_dict
+        else:
+            return y_true, y_pred
 
     def _evaluation_score(self, y_true:list, y_pred:list, option:str=""):
-        score = pearsonr(y_true, y_pred)[0]
-        left, right = boot.ci((y_true, y_pred), statfunction=lambda x, y: pearsonr(x, y)[0])
-        return left, score, right
+        if isinstance(y_pred, list):
+            score = pearsonr(y_true, y_pred)[0]
+            left, right = boot.ci((y_true, y_pred), statfunction=lambda x, y: pearsonr(x, y)[0])
+            return left, score, right
+        elif isinstance(y_pred, dict):
+            ans = {}
+            for k in y_pred:
+                l, s, r = self._evaluation_score(y_true, y_pred[k])
+                ans[k] = [l, s, r]
+            return ans
 
     def preprocess(self):
         # check if already processed, if so, just load the results, if not redo the processing
         # A word_vector contains
-        word_vector_path = "tmp/{}-{}/{}.word_vector".format(self.dataset.name, self.dataset.task, self.word_vector.name)
+        word_vector_path = "tmp/{}/{}.word_vector".format(self.dataset.name, self.word_vector.name)
         if os.path.exists(word_vector_path) and self.config['word_vector'].get('refresh_cache', False) == False:
             self.word_vector.load_from_file(word_vector_path)
         else:
@@ -78,16 +98,21 @@ class Pipeline:
         if self.vocab_convertor:
             self.vocab_convertor.update(self.word_vector)
         self.sentence_parser.update(self.word_vector, self.word_weight, self.dataset)
+        print("[pipeline][preprocess] filtered out words without pretrained vectors")
 
     def run(self):
         yt, yp = self._evaluate_over_datasets()
-        l, s, r = self._evaluation_score(yt, yp)
-        print("[{:.2f}, {:.2f}, {:.2f}]".format(l*100, s*100, r*100))
-
-        return l, s, r
+        ans = self._evaluation_score(yt, yp)
+        if isinstance(ans, tuple):
+            l, s, r = ans
+            print("{:.2f}, {:.2f}, {:.2f}".format(l*100, s*100, r*100))
+        if isinstance(ans, dict):
+            for k, (l, s, r) in ans.items():
+                print("{}, {:.2f}, {:.2f}, {:.2f}".format(k, l*100, s*100, r*100))
+        return ans
 
 
 if __name__ == "__main__":
-    p = Pipeline(pipeline_config='config/test.json')
+    p = Pipeline(pipeline_config='config/default.yaml')
     p.preprocess()
     p.run()

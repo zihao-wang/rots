@@ -14,12 +14,25 @@ def preprocess(t):
 not_punc = re.compile('.*[A-Za-z0-9].*')
 
 
-dataset_dict = {
-    "STSBenchmark": "dataset/STSBenchmark"
+dataset_path_dict = {
+    "stsb-test": "dataset/STSBenchmark/sts-test.csv",
+    "stsb-dev": "dataset/STSBenchmark/sts-dev.csv",
+    "twitter-test": "dataset/SemEval-PIT2015-github/data/test.data",
+    "sick-r": "dataset/STS/SICK-data/SICK_test_annotated.txt",
+    "sts-2012": "dataset/STS/STS-data/STS2012-gold",
+    "sts-2013": "dataset/STS/STS-data/STS2013-gold",
+    "sts-2014": "dataset/STS/STS-data/STS2014-gold",
+    "sts-2015": "dataset/STS/STS-data/STS2015-gold",
+    "sts-2016": "dataset/STS/STS-data/STS2016-gold",
 }
 
-
-
+sts_tasks= {
+    "2012": "MSRpar MSRvid SMTeuroparl surprise.OnWN surprise.SMTnews".split(),
+    "2013": "FNWN headlines OnWN SMT".split(),
+    "2014": "deft-forum deft-news headlines OnWN images tweet-news".split(),
+    "2015": "answers-forums answers-students belief headlines images".split(),
+    "2016": "answer-answer headlines plagiarism postediting question-question".split()
+    }
 class Dataset:
     """A dataset maintains:
         - dataset-wise dicts
@@ -30,16 +43,13 @@ class Dataset:
             - indiced sentences [[word_ids]]
         - sentence pair (sent_id1, sent_id2, true_score)
     """
+    # you should implement all recorded folders in the load function
 
-    def __init__(self, dataset, task_name, tokenizer='nltk', remove_stop=False, remove_punc=False):
+    def __init__(self, dataset, tokenizer='nltk', remove_stop=False, remove_punc=False):
         self.name = dataset
         if '/' in self.name:
             self.name = self.name.split('/')[-1]
-        self.task = task_name
-        if dataset in dataset_dict:
-            self.dataset = dataset_dict[dataset]
-        else:
-            self.dataset = dataset
+        self.dataset = dataset
         self.tokenizer = tokenizer
         self.remove_stop = remove_stop
         self.remove_punc = remove_punc
@@ -68,19 +78,60 @@ class Dataset:
         return len(self.pairs)
 
     def load(self):
-        print('[dataset][load] load task: {} from dataset: {}'.format(self.task, self.dataset))
-        if self.task in ['test', 'dev']:
-            task = 'sts-{}.csv'.format(self.task)
-        else:
-            task = self.task
-        with open(os.path.join(self.dataset, task), encoding='utf8', mode='rt') as f:
-            for line in f.readlines():
-                try:
-                    similarity, s1, s2 = line.strip().split('\t')[-3:]
+        path = dataset_path_dict[self.dataset]
+        print('[dataset][load] load dataset: {} from path:\n {}'.format(
+            self.dataset, path))
+        if self.dataset.split('-')[0] == "stsb":
+            with open(os.path.join(path), encoding='utf8', mode='rt') as f:
+                for line in f.readlines():
+                    try:
+                        similarity, s1, s2 = line.strip().split('\t')[-3:]
+                        self.scores.append(float(similarity))
+                        self.raw_sentences.extend([s1, s2])
+                    except:
+                        print("parse failed: line content {}".format(line))
+                        pass
+        elif self.dataset.split('-')[0] == 'twitter':
+            with open(os.path.join(path), encoding='utf8', mode='rt') as f:
+                for line in f.readlines():
+                    try:
+                        s1, s2, similarity = line.strip().split('\t')[2:5]
+                        self.scores.append(float(similarity))
+                        self.raw_sentences.extend([s1, s2])
+                    except:
+                        print("parse failed: line content {}".format(line))
+                        pass
+        elif self.dataset == 'sick':
+            with open(os.path.join(path), encoding='utf8', mode='rt') as f:
+                for line in f.readlines():
+                    try:
+                        s1, s2, similarity = line.strip().split('\t')[1:4]
+                        self.scores.append(float(similarity))
+                        self.raw_sentences.extend([s1, s2])
+                    except:
+                        print("parse failed: line content {}".format(line))
+                        pass
+        elif self.dataset.split('-')[0] == 'sts':
+            test_fns = filter(lambda fn: '.input.' in fn and fn.endswith('txt'),
+                              os.listdir(path))
+            for fn in test_fns:
+                sentf = open(os.path.join(path, fn), encoding='utf8', mode='rt')
+                sfn = fn.replace('input', 'gs')
+                scoref = open(os.path.join(path, sfn), encoding='utf8', mode='rt')
+                for line in sentf.readlines():
+                    s1, s2 = line.strip().split('\t')[:2]
                     self.raw_sentences.extend([s1, s2])
-                    self.scores.append(float(similarity))
-                except:
-                    pass
+                for line in scoref.readlines():
+                    try:
+                        similarity = float(line.strip())
+                    except:
+                        similarity = 0
+                    self.scores.append(similarity)
+                sentf.close()
+                scoref.close()
+
+        else:
+            raise NotImplementedError
 
     def tokenization(self):
         print("[dataset][Tokenization]")
@@ -138,9 +189,9 @@ class Dataset:
         print("[dataset][Pairing] finished with {} pairs".format(len(self.pairs)))
 
 
-def get_dataset(dataset_name="STSBenchmark", task_name="test", refresh_cache=False, **kwargs):
-    d = Dataset(dataset_name, task_name, **kwargs)
-    dataset_path = "tmp/{}-{}.data".format(d.name, d.task)
+def get_dataset(dataset_name="stsb-test", refresh_cache=False, **kwargs):
+    d = Dataset(dataset_name, **kwargs)
+    dataset_path = "tmp/{}.data".format(dataset_name)
     if os.path.exists(dataset_path) and refresh_cache == False:
         d.load_from_file(dataset_path)
     else:

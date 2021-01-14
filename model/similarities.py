@@ -142,7 +142,8 @@ class ROTS:
     def __call__(self, s1: Sentence, s2: Sentence):
         s1.parse(self.parser)
         s2.parse(self.parser)
-        depth = min(max(len(s1.tree_level_index), len(s2.tree_level_index)), self.depth)
+        # depth = min(max(len(s1.tree_level_index), len(s2.tree_level_index)), self.depth)
+        depth = self.depth
         answer = {}  # d, alignment score
         transport_plan = {}
         for d in range(depth):

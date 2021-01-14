@@ -235,8 +235,6 @@ class GeneralPCompRemoval:
             return vector_list
 
     def update(self, word_vector, weight_scheme, dataset):
-        if self.n_comp == 0:
-            return
 
         sent_vec_list = []
         reduced_sentences = []
