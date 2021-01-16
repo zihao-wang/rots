@@ -24,7 +24,7 @@ dataset_path_dict = {
     "sts:2013": "dataset/STS/STS-data/STS2013-gold",
     "sts:2014": "dataset/STS/STS-data/STS2014-gold",
     "sts:2015": "dataset/STS/STS-data/STS2015-gold",
-    # "sts-2016": "dataset/STS/STS-data/STS2016-gold",
+    "sts-2016": "dataset/STS/STS-data/STS2016-gold",
     "sts:2016": "dataset/STS/STS-data/STS16-en-test",
 }
 

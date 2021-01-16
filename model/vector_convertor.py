@@ -4,16 +4,19 @@ from sklearn.decomposition import TruncatedSVD
 
 def get_vector_convertor(vec_conv, **kwargs):
     seq = vec_conv.split('-')
-    print(seq)
     convertor_seq = []
     for op in seq:
         if op == 'abtt':
+            print('using all but the top')
             convertor_seq.append(AllButTheTop())
         elif op == 'cn':
+            print("using concept negation")
             convertor_seq.append(ConceptorNegation())
         elif op == 'cent':
+            print("using vocabulary centralize")
             convertor_seq.append(Centralize())
         elif op == 'norm':
+            print("using vocabulary nomalization")
             convertor_seq.append(Normalize())
     return Convertors(conv_seq=convertor_seq)
 
@@ -81,7 +84,8 @@ class ConceptorNegation:
             w = vocab_matrix[i].reshape(-1, 1)
             R += np.dot(w, w.T)
         R /= n
-        C = np.eye(d) - np.dot(R, np.linalg.inv(R + np.eye(d) * self.alpha ** -2))
-        self.transfer = lambda x: np.dot(C, x.reshape(-1, 1)).reshape(-1)
+        C = np.dot(R, np.linalg.inv(R + np.eye(d) * self.alpha ** -2))
+        A = np.eye(d) - C
+        self.transfer = lambda x: np.dot(A, x.reshape(-1, 1)).reshape(-1)
         for w in w2v.vectors:
             w2v.vectors[w] = self.transfer(w2v[w])

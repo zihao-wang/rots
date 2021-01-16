@@ -15,17 +15,17 @@ def cosine(x, y):
     n2, d2 = y.shape
     assert d1 == d2
     M = 1 - (np.dot(x, y.T)) / (np.linalg.norm(x, axis=1, keepdims=True) * np.linalg.norm(y, axis=1, keepdims=True).T + 1e-10)
-    return np.squeeze(M)
+    return np.squeeze(M).reshape(n1, n2)
 
 
 def get_similarity(similarity="cos", **kwargs):
     name = similarity.lower()
     if name == 'cos':
-        return CosineSimilarity()
+        return CosineSimilarity(**kwargs)
     elif name == 'wmd':
         return WMDp(**kwargs)
     elif name == 'wrd':
-        return WRD()
+        return WRD(**kwargs)
     elif name == 'wrdinterp':
         return WRDInterp(**kwargs)
     elif name == 'wfrrdinterp':
@@ -35,11 +35,19 @@ def get_similarity(similarity="cos", **kwargs):
 
 
 class CosineSimilarity:
-    def __init__(self):
-        pass
+    def __init__(self, adjust_WRD=False, **kwargs):
+        self.adjust_WRD = adjust_WRD
 
     def __call__(self, s1, s2):
-        return 1 - cosine(s1.sentence_vector, s2.sentence_vector)
+        sim = 1 - cosine(s1.sentence_vector, s2.sentence_vector).squeeze()
+        if self.adjust_WRD:
+            sim *= np.linalg.norm(s1.sentence_vector)
+            sim *= np.linalg.norm(s2.sentence_vector)
+            a = np.asarray([np.linalg.norm(v) * w for v, w in zip(s1.vectors, s1.weights)])
+            sim /= np.sum(a)
+            b = np.asarray([np.linalg.norm(v) * w for v, w in zip(s2.vectors, s2.weights)])
+            sim /= np.sum(b)
+        return sim
 
 
 class WMDp:
@@ -80,16 +88,25 @@ class WFRRDInterp:
 
 
 class WRD:
-    def __init__(self):
-        pass
+    def __init__(self, adjust_cos=False, **kwargs):
+        self.adjust_cos = adjust_cos
 
     def __call__(self, s1, s2):
+        if len(s1.vectors) == 0 or len(s2.vectors) == 0:
+            return 1
+        if len(s1.vectors) == 1 or len(s2.vectors) == 1:
+            return CosineSimilarity()(s1, s2)
         M = cosine(np.asarray(s1.vectors), np.asarray(s2.vectors))
-        a = np.asarray([np.linalg.norm(v) * w for v, w in zip(s1.vectors, s1.weights)])
-        a /= np.sum(a)
-        b = np.asarray([np.linalg.norm(v) * w for v, w in zip(s2.vectors, s2.weights)])
-        b /= np.sum(b)
-        return 1 - ot.emd2(a, b, M)
+        _a = np.asarray([np.linalg.norm(v) * w for v, w in zip(s1.vectors, s1.weights)])
+        a = _a ** 2 / np.sum(_a ** 2)
+        _b = np.asarray([np.linalg.norm(v) * w for v, w in zip(s2.vectors, s2.weights)])
+        b = _b ** 2 / np.sum(_b ** 2)
+        sim = 1 - ot.emd2(a, b, M)
+        if self.adjust_cos:
+            sim *= np.sum(_a) * np.sum(_b)
+            sim /= np.linalg.norm(s1.sentence_vector)
+            sim /= np.linalg.norm(s2.sentence_vector)
+        return sim
 
 
 class WRDInterp:
@@ -140,42 +157,55 @@ class ROTS:
         self.aggregation = aggregation
 
     def __call__(self, s1: Sentence, s2: Sentence):
-        s1.parse(self.parser)
-        s2.parse(self.parser)
-        _depth = min(max(len(s1.tree_level_index), len(s2.tree_level_index)), self.depth)
-        depth = self.depth
-        answer = {}  # d, alignment score
-        transport_plan = {}
-        for d in range(depth):
-            # if d == 0:
-            vectors1, weights1, tdlink1 = s1.get_level_vectors_weights(d)
-            vectors2, weights2, tdlink2 = s2.get_level_vectors_weights(d)
-            M_cossim = cosine(vectors1, vectors2)
-            _a = np.asarray([np.linalg.norm(v) * w for v, w in zip(vectors1, weights1)])
-            a = _a / np.sum(_a)
-            _b = np.asarray([np.linalg.norm(v) * w for v, w in zip(vectors2, weights2)])
-            b = _b / np.sum(_b)
-            C = np.sum(_a) * np.sum(_b) / (np.linalg.norm(s1.sentence_vector) * np.linalg.norm(s2.sentence_vector) + 1e-3)
-            cos_prior = a.reshape(-1, 1).dot(b.reshape(1, -1))
-            if tdlink1 and tdlink2:
-                prior_plan_top = transport_plan[d-1]
-                prior_plan_down = np.copy(cos_prior)
-                for ti in tdlink1:
-                    for tj in tdlink2:
-                        mass = prior_plan_top[ti, tj]
-                        local_a = np.sum([_a[di] for di in tdlink1[ti]])
-                        local_b = np.sum([_b[dj] for dj in tdlink2[tj]])
-                        for di in tdlink1[ti]:
-                            for dj in tdlink2[tj]:
-                                prior_plan_down[di, dj] = mass * _a[di] * _b[dj] / local_a / local_b
-            else:
-                # print(d)
-                prior_plan_down = cos_prior
-            M = M_cossim - np.log(cos_prior + 1e-10) * self.creg - np.log(prior_plan_down + 1e-10) * self.prior_reg[d]
-            reg = self.creg + self.prior_reg[d] + self.ereg
-            P = ot.sinkhorn(a, b, M, reg, method='sinkhorn_stabilized')
-            transport_plan[d] = P
-            answer[d] = (1 - np.sum(P * M_cossim)) * (1 - self.coef_C + self.coef_C * C)
+        if len(s1.vectors) == 0 or len(s2.vectors) == 0:
+            _depth = self.depth
+            answer = {d: 1 for d in range(self.depth)}
+        elif len(s1.vectors) == 1 or len(s2.vectors) == 1:
+            answer = {d: float(CosineSimilarity()(s1, s2)) for d in range(self.depth)}
+            _depth = self.depth
+        else:
+            s1.parse(self.parser)
+            s2.parse(self.parser)
+            _depth = min(max(len(s1.tree_level_index), len(s2.tree_level_index)), self.depth)
+            depth = self.depth
+            answer = {}  # d, alignment score
+            transport_plan = {}
+            for d in range(depth):
+                # if d == 0:
+                # vectors1, weights1, tdlink1 = s1.get_level_vectors_weights(d)
+                # vectors2, weights2, tdlink2 = s2.get_level_vectors_weights(d)
+                vectors1, _a, tdlink1 = s1.get_level_vectors_weights(d)
+                vectors2, _b, tdlink2 = s2.get_level_vectors_weights(d)
+                M_cossim = cosine(vectors1, vectors2)
+                # _a = np.asarray([np.linalg.norm(v) * w for v, w in zip(vectors1, weights1)])
+                a = _a / np.sum(_a)
+                # _b = np.asarray([np.linalg.norm(v) * w for v, w in zip(vectors2, weights2)])
+                b = _b / np.sum(_b)
+                C = np.sum(_a) * np.sum(_b) / (np.linalg.norm(s1.sentence_vector) * np.linalg.norm(s2.sentence_vector) + 1e-3)
+                cos_prior = a.reshape(-1, 1).dot(b.reshape(1, -1))
+                if tdlink1 and tdlink2 and False:
+                    prior_plan_top = transport_plan[d-1]
+                    prior_plan_down = np.copy(cos_prior)
+                    for ti in tdlink1:
+                        for tj in tdlink2:
+                            mass = prior_plan_top[ti, tj]
+                            local_a = np.sum([_a[di] for di in tdlink1[ti]])
+                            local_b = np.sum([_b[dj] for dj in tdlink2[tj]])
+                            for di in tdlink1[ti]:
+                                for dj in tdlink2[tj]:
+                                    prior_plan_down[di, dj] = mass * _a[di] * _b[dj] / local_a / local_b
+                else:
+                    # print(d)
+                    prior_plan_down = cos_prior
+                M = M_cossim - np.log(cos_prior + 1e-10) * self.creg - np.log(prior_plan_down + 1e-10) * self.prior_reg[d]
+                reg = self.creg + self.prior_reg[d] + self.ereg
+                P = ot.sinkhorn(a, b, M, reg, method='sinkhorn_stabilized',numItermax=32)
+                # P = ot.emd(a, b, M)
+                # P = ot.unbalanced.sinkhorn_unbalanced(a, b, M, reg=reg, reg_m=1, method="sinkhorn_stabilized")
+                transport_plan[d] = P
+                coef_C = 0
+                answer[d] = (1 - np.sum(P * M_cossim)) * (1 - coef_C + coef_C * C)
+                # answer[d] = 1 - ot.emd2(a, b, M)
 
         if self.aggregation == 'mean':
             return np.mean(list(answer.values()))
@@ -184,7 +214,7 @@ class ROTS:
         elif self.aggregation == 'min':
             return np.min(list(answer.values()))
         elif self.aggregation == 'last':
-            return answer[depth-1]
+            return answer[_depth-1]
         elif self.aggregation == 'all':
             answer['mean'] = np.mean(list(answer.values()))
             answer['max'] = np.max(list(answer.values()))

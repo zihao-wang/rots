@@ -1,7 +1,6 @@
 import json
-import numpy
 import os
-import yaml
+from utils import read_from_yaml
 
 from tqdm import tqdm
 from pprint import pprint
@@ -16,14 +15,13 @@ def get_config(config_file):
     if isinstance(config_file, dict):
         return config_file
     else:
-        with open(config_file, 'rt') as f:
-            if config_file.endswith('json'):
+        if config_file.endswith('json'):
+            with open(config_file, 'rt') as f:
                 config = json.load(f)
-            elif config_file.endswith('yaml'):
-                with open(config_file, 'rt') as f:
-                    config = yaml.load(f, Loader=yaml.FullLoader)
-            else:
-                raise NotImplementedError
+        elif config_file.endswith('yaml'):
+            config = read_from_yaml(config_file)
+        else:
+            raise NotImplementedError
         return config
 
 

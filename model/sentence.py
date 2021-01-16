@@ -14,7 +14,8 @@ def get_sentence_parser(n_comp, scale, **kwargs):
 
 
 class Sentence:
-    def __init__(self, vectors, weights, words, **kwargs):
+    def __init__(self, vectors, weights, words, which_vw=1, **kwargs):
+        self.which_vw = 1
         self.vectors = vectors
         self.weights = weights
         self.words = words
@@ -31,7 +32,10 @@ class Sentence:
         sent_vector = 0
         for v, w in zip(self.vectors, self.weights):
             sent_vector += v * w
-        return sent_vector
+        if len(self.vectors) == 0:
+            return np.ones((1, 300))
+        else:
+            return sent_vector
 
     @property
     def string(self):
@@ -46,6 +50,12 @@ class Sentence:
         return sid
 
     def span_vw(self, span):
+        if self.which_vw == 1:
+            return self.span_vw1(span)
+        elif self.which_vw == 2:
+            return self.span_vw2(span)
+
+    def span_vw1(self, span):
         begin, end, _ = span
         chunk_vw = 0
         chunk_w = 0
@@ -53,6 +63,15 @@ class Sentence:
             chunk_vw += self.vectors[i] * self.weights[i]
             chunk_w  += self.weights[i]
         return chunk_vw, chunk_w
+
+    def span_vw2(self, span):
+        begin, end, _ = span
+        chunk_vw = 0
+        chunk_wv = 0
+        for i in range(begin, end):
+            chunk_vw += self.vectors[i] * self.weights[i]
+            chunk_wv += self.weights[i] * np.linalg.norm(self.vectors[i])
+        return chunk_vw, chunk_wv
 
     def span_str(self, span):
         begin, end, _ = span
@@ -176,7 +195,7 @@ class Sentence:
         return
 
     def get_level_vectors_weights(self, l):
-        l = min(len(self.tree_level_index)-1, l)
+        # l = min(len(self.tree_level_index)-1, l)
         vectors, weights = [], []
         b = 0
         li = 0
@@ -184,7 +203,7 @@ class Sentence:
             if li < len(self.tree_level_index[l]) and b == self.tree_level_index[l][li][0]:
                 get_level_span = self.tree_level_index[l][li]
                 _vw, _w = self.span_vw_dict[get_level_span]
-                vectors.append(_vw / _w)
+                vectors.append(_vw)
                 weights.append(_w)
                 b = get_level_span[1]
                 li += 1
@@ -192,7 +211,7 @@ class Sentence:
             else:
                 get_word_span = self.span_begin_index[b]
                 _vw, _w = self.span_vw_dict[get_word_span]
-                vectors.append(_vw / _w)
+                vectors.append(_vw)
                 weights.append(_w)
                 b += 1
                 self.tree_level_span_flat[l].append(get_word_span)
@@ -209,9 +228,10 @@ class Sentence:
                     j += 1
                     if j >= len(down_span_flat): break
                     db, de, _ = down_span_flat[j]
-            return vectors, weights, top_down_link
         else:
-            return vectors, weights, {}
+            top_down_link = {}
+
+        return vectors, weights, top_down_link
 
 
 
