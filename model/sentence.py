@@ -50,21 +50,6 @@ class Sentence:
         return sid
 
     def span_vw(self, span):
-        if self.which_vw == 1:
-            return self.span_vw1(span)
-        elif self.which_vw == 2:
-            return self.span_vw2(span)
-
-    def span_vw1(self, span):
-        begin, end, _ = span
-        chunk_vw = 0
-        chunk_w = 0
-        for i in range(begin, end):
-            chunk_vw += self.vectors[i] * self.weights[i]
-            chunk_w  += self.weights[i]
-        return chunk_vw, chunk_w
-
-    def span_vw2(self, span):
         begin, end, _ = span
         chunk_vw = 0
         chunk_wv = 0
@@ -85,9 +70,9 @@ class Sentence:
         self.span_vw_dict = {}
         self.span_begin_index = {}
         t1 = time()
-        if parser.lower() == 'dependency':
+        if parser.lower() in 'dependency':
             self._parse_spacy()
-        elif parser.lower() == 'constituency':
+        elif parser.lower() in 'constituency':
             # this is very slow, so I don't recommnd to use this.
             # meanwhile, it produces similari results as dependency parser
             self.bc = BeneparComponent('benepar_en_small')
@@ -178,41 +163,41 @@ class Sentence:
             for span in self.tree_level_index[d]:
                 b, e, p = span
                 if e - b == 1:  # if is single word
-                    vw, w = self.span_vw(span)
-                    self.span_vw_dict[span] = [vw, w]
+                    vw, wvnorm = self.span_vw(span)
+                    self.span_vw_dict[span] = [vw, wvnorm]
                     self.span_begin_index[b] = span
                 else:
-                    vw, w = self.span_vw_dict[span]
+                    vw, wvnorm = self.span_vw_dict[span]
 
                 if p in self.span_dict:
                     p_span = self.span_dict[p]
                     if p_span in self.span_vw_dict:
-                        _vw, _w = self.span_vw_dict[p_span]
-                        self.span_vw_dict[p_span] = [_vw + vw, _w + w]
+                        _vw, _wvnorm = self.span_vw_dict[p_span]
+                        self.span_vw_dict[p_span] = [_vw + vw, _wvnorm + wvnorm]
                     else:
-                        self.span_vw_dict[p_span] = [vw, w]
+                        self.span_vw_dict[p_span] = [vw, wvnorm]
             d -= 1
         return
 
     def get_level_vectors_weights(self, l):
         # l = min(len(self.tree_level_index)-1, l)
-        vectors, weights = [], []
+        vectors, wvnorms = [], []
         b = 0
         li = 0
         while b < len(self):
             if li < len(self.tree_level_index[l]) and b == self.tree_level_index[l][li][0]:
                 get_level_span = self.tree_level_index[l][li]
-                _vw, _w = self.span_vw_dict[get_level_span]
+                _vw, _wvnorm = self.span_vw_dict[get_level_span]
                 vectors.append(_vw)
-                weights.append(_w)
+                wvnorms.append(_wvnorm)
                 b = get_level_span[1]
                 li += 1
                 self.tree_level_span_flat[l].append(get_level_span)
             else:
                 get_word_span = self.span_begin_index[b]
-                _vw, _w = self.span_vw_dict[get_word_span]
+                _vw, _wvnorm = self.span_vw_dict[get_word_span]
                 vectors.append(_vw)
-                weights.append(_w)
+                wvnorms.append(_wvnorm)
                 b += 1
                 self.tree_level_span_flat[l].append(get_word_span)
 
@@ -231,7 +216,7 @@ class Sentence:
         else:
             top_down_link = {}
 
-        return vectors, weights, top_down_link
+        return vectors, wvnorms, top_down_link
 
 
 

@@ -98,15 +98,52 @@ class WRD:
             return CosineSimilarity()(s1, s2)
         M = cosine(np.asarray(s1.vectors), np.asarray(s2.vectors))
         _a = np.asarray([np.linalg.norm(v) * w for v, w in zip(s1.vectors, s1.weights)])
-        a = _a ** 2 / np.sum(_a ** 2)
+        a = _a / np.sum(_a)
         _b = np.asarray([np.linalg.norm(v) * w for v, w in zip(s2.vectors, s2.weights)])
-        b = _b ** 2 / np.sum(_b ** 2)
+        b = _b / np.sum(_b)
         sim = 1 - ot.emd2(a, b, M)
         if self.adjust_cos:
             sim *= np.sum(_a) * np.sum(_b)
             sim /= np.linalg.norm(s1.sentence_vector)
             sim /= np.linalg.norm(s2.sentence_vector)
         return sim
+
+class WRDLevels:
+    def __init__(self, depth=5, margin='norm_vectors'):
+        """
+        margin: one of norm_vectors or vector_norms
+        - norm_vectors: norm of cumulated vectors
+        - vector_norms: cumulated vector norms
+        """
+        self.margin = margin
+        self.depth = depth
+
+    def __call__(self, s1, s2, depth):
+        if len(s1.vectors) == 0 or len(s2.vectors) == 0:
+            answer = {d: 1 for d in range(self.depth)}
+        elif len(s1.vectors) == 1 or len(s2.vectors) == 1:
+            answer = {d: float(CosineSimilarity()(s1, s2)) for d in range(self.depth)}
+        else:
+            s1.parse(self.parser)
+            s2.parse(self.parser)
+            answer = {}
+            for d in range(self.depth):
+                vectors1, wvnorms1, _ = s1.get_level_vector_weights(d)
+                vectors2, wvnorms2, _ = s2.get_level_vector_weights(d)
+                if self.margin == 'norm_vectors':
+                    _a = np.asarray([np.linalg.norm(v) for v in vectors1])
+                    _b = np.asarray([np.linalg.norm(v) for v in vectors2])
+                elif self.margin == 'vector_norms':
+                    _a = np.asarray(wvnorms1)
+                    _b = np.asarray(wvnorms2)
+                else:
+                    raise NotImplementedError
+                a = _a / np.sum(_a)
+                b = _b / np.sum(_b)
+                M = cosine(np.asarray(s1.vectors), np.asarray(s2.vectors))
+                answer[d] = 1 - ot.emd2(a, b, M)
+
+        return answer
 
 
 class WRDInterp:
@@ -170,7 +207,7 @@ class ROTS:
             depth = self.depth
             answer = {}  # d, alignment score
             transport_plan = {}
-            for d in range(depth):
+            for d in range(self.depth):
                 # if d == 0:
                 # vectors1, weights1, tdlink1 = s1.get_level_vectors_weights(d)
                 # vectors2, weights2, tdlink2 = s2.get_level_vectors_weights(d)
@@ -183,7 +220,7 @@ class ROTS:
                 b = _b / np.sum(_b)
                 C = np.sum(_a) * np.sum(_b) / (np.linalg.norm(s1.sentence_vector) * np.linalg.norm(s2.sentence_vector) + 1e-3)
                 cos_prior = a.reshape(-1, 1).dot(b.reshape(1, -1))
-                if tdlink1 and tdlink2 and False:
+                if tdlink1 and tdlink2:
                     prior_plan_top = transport_plan[d-1]
                     prior_plan_down = np.copy(cos_prior)
                     for ti in tdlink1:
