@@ -26,6 +26,8 @@ def get_similarity(similarity="cos", **kwargs):
         return WMDp(**kwargs)
     elif name == 'wrd':
         return WRD(**kwargs)
+    elif name == 'wrdlevels':
+        return WRDLevels(**kwargs)
     elif name == 'wrdinterp':
         return WRDInterp(**kwargs)
     elif name == 'wfrrdinterp':
@@ -109,7 +111,7 @@ class WRD:
         return sim
 
 class WRDLevels:
-    def __init__(self, depth=5, margin='norm_vectors'):
+    def __init__(self, depth=5, margin='norm_vectors', parser='dep', **kwargs):
         """
         margin: one of norm_vectors or vector_norms
         - norm_vectors: norm of cumulated vectors
@@ -117,8 +119,9 @@ class WRDLevels:
         """
         self.margin = margin
         self.depth = depth
+        self.parser = parser
 
-    def __call__(self, s1, s2, depth):
+    def __call__(self, s1, s2):
         if len(s1.vectors) == 0 or len(s2.vectors) == 0:
             answer = {d: 1 for d in range(self.depth)}
         elif len(s1.vectors) == 1 or len(s2.vectors) == 1:
@@ -128,8 +131,8 @@ class WRDLevels:
             s2.parse(self.parser)
             answer = {}
             for d in range(self.depth):
-                vectors1, wvnorms1, _ = s1.get_level_vector_weights(d)
-                vectors2, wvnorms2, _ = s2.get_level_vector_weights(d)
+                vectors1, wvnorms1, _ = s1.get_level_vectors_weights(d)
+                vectors2, wvnorms2, _ = s2.get_level_vectors_weights(d)
                 if self.margin == 'norm_vectors':
                     _a = np.asarray([np.linalg.norm(v) for v in vectors1])
                     _b = np.asarray([np.linalg.norm(v) for v in vectors2])
@@ -140,7 +143,7 @@ class WRDLevels:
                     raise NotImplementedError
                 a = _a / np.sum(_a)
                 b = _b / np.sum(_b)
-                M = cosine(np.asarray(s1.vectors), np.asarray(s2.vectors))
+                M = cosine(np.asarray(vectors1), np.asarray(vectors2))
                 answer[d] = 1 - ot.emd2(a, b, M)
 
         return answer
