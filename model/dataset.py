@@ -24,7 +24,6 @@ dataset_path_dict = {
     "sts:2013": "dataset/STS/STS-data/STS2013-gold",
     "sts:2014": "dataset/STS/STS-data/STS2014-gold",
     "sts:2015": "dataset/STS/STS-data/STS2015-gold",
-    "sts-2016": "dataset/STS/STS-data/STS2016-gold",
     "sts:2016": "dataset/STS/STS-data/STS16-en-test",
 }
 
@@ -177,6 +176,7 @@ class Dataset:
             # preprocess a given token
 
         for sentence in tqdm(self.raw_sentences):
+            sentence = sentence.lower()
             if self.tokenizer == 'spacy':
                 if self.remove_stop:
                     _tokens = [t.text for t in tokenizer(sentence) if t.is_stop == False]

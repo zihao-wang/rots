@@ -6,20 +6,19 @@ from pprint import pprint
 
 
 model = {
-    # 'SIF': "config/SIF.yaml",
-    # 'uSIF': "config/uSIF.yaml",
-    # 'SIF+adjustwrd': "config/SIF+adjustwrd.yaml",
-    # 'uSIF+adjustwrd': "config/uSIF+adjustwrd.yaml"
-    # 'WRD+SUP': "config/WRD+SUP.yaml",
-    # 'WRD+SWC': "config/WRD+SWC.yaml",
-    # 'WRD+WR': "config/WRD+WR.yaml",
+    'COS+WR': "config/COS+WR.yaml",
+    'COS+SUP': "config/COS+SUP.yaml",
+    'COS+SWC': "config/COS+SWC.yaml",
+    'WRD+WR': "config/WRD+WR.yaml",
+    'WRD+SUP': "config/WRD+SUP.yaml",
+    'WRD+SWC': "config/WRD+SWC.yaml",
     'WRD+SUP+levels': "config/WRD+SUP+levels.yaml",
     'WRD+SWC+levels': "config/WRD+SWC+levels.yaml",
     'WRD+WR+levels': "config/WRD+WR+levels.yaml",
-    # 'WRD+SUP+adjustcos': "config/WRD+SUP+adjustcos.yaml",
-    # 'WRD+SWC+adjustcos': "config/WRD+SWC+adjustcos.yaml",
-    # 'WRD+WR+adjustcos': "config/WRD+WR+adjustcos.yaml",
-    # 'ROTS': "config/ROTS.yaml",
+    'ROTS+WR': "config/ROTS+WR.yaml",
+    'ROTS+SUP': "config/ROTS+SUP.yaml",
+    'ROTS+SWC': "config/ROTS+SWC.yaml",
+    # 'ROTSVNs': "config/ROTS-margin.yaml"
 }
 
 def run(cfg):
@@ -58,7 +57,7 @@ if __name__ == "__main__":
 
     for m in model:
         config_file = model[m]
-        writer = Writer(case_name="major_compare" + m, meta={})
+        writer = Writer(case_name="major_compare_" + m, meta={}, postfix=False)
         for wv in VectorNames:
             print(wv)
             for dataset in dataset_path_dict:

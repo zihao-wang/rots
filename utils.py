@@ -8,6 +8,7 @@ import os
 import pickle
 import time
 import yaml
+from shutil import rmtree
 from os.path import join
 
 import numpy as np
@@ -19,7 +20,7 @@ class Writer:
 
     _log_path = join(dir_path, 'log')
 
-    def __init__(self, case_name, meta, log_path=None):
+    def __init__(self, case_name, meta, log_path=None, postfix=True):
         if isinstance(meta, dict):
             self.meta = meta
         else:
@@ -28,10 +29,13 @@ class Writer:
         self.meta['time'] = self.time
         self.idstr = case_name
         self.column_name = {}
-        self.idstr += time.strftime("%y%m%d.%H:%M:%S", time.localtime()) + \
-                 hashlib.sha1(str(self.meta).encode('UTF-8')).hexdigest()[:8]
+        if postfix:
+            self.idstr += time.strftime("%y%m%d.%H:%M:%S", time.localtime()) + \
+                    hashlib.sha1(str(self.meta).encode('UTF-8')).hexdigest()[:8]
 
         self.log_path = log_path if log_path else self._log_path
+        if os.path.exists(self.case_dir):
+            rmtree(self.case_dir)
         os.makedirs(self.case_dir, exist_ok=False)
 
         with open(self.metaf, 'wt') as f:

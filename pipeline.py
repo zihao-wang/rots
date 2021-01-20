@@ -45,10 +45,10 @@ class Pipeline:
     def _evaluate_over_datasets(self):
         """Run evaluation for certain dataset
         """
+        fail_cases = 0
         y_true = []
         y_pred = []
         for s1, s2, yt in tqdm(self.dataset.pairs):
-            y_true.append(yt)
             sent1 = self.sentence_parser.get_sentence(token_list=self.dataset.sentences[s1],
                                                       word_vector=self.word_vector,
                                                       weight_scheme=self.word_weight,
@@ -58,9 +58,14 @@ class Pipeline:
                                                       weight_scheme=self.word_weight,
                                                       dataset=self.dataset)
 
-            yp = self.similarity(sent1, sent2)
+            try:
+                yp = self.similarity(sent1, sent2)
             # assert yp < 1
-            y_pred.append(yp)
+                y_true.append(yt)
+                y_pred.append(yp)
+            except:
+                fail_cases += 1
+        print('fail cases', fail_cases)
         if isinstance(y_pred[0], dict):
             y_pred_dict = {}
             for i in y_pred[0]:
@@ -124,7 +129,7 @@ class Pipeline:
         self.sentence_parser.update(self.word_vector, self.word_weight, self.dataset)
         print("[pipeline][preprocess] filtered out words without pretrained vectors")
 
-    def run(self):
+    def run(self, pred=False):
         yt, yp = self._evaluate_over_datasets()
         ans = self._evaluation_score(yt, yp)
         if isinstance(ans, tuple):
@@ -133,10 +138,17 @@ class Pipeline:
         if isinstance(ans, dict):
             for k, (l, s, r) in ans.items():
                 print("{}, {:.2f}, {:.2f}, {:.2f}".format(k, l*100, s*100, r*100))
-        return ans
+        if pred:
+            return ans, yt, yp
+        else:
+            return ans
 
 
 if __name__ == "__main__":
     p = Pipeline(pipeline_config='config/default.yaml')
     p.preprocess()
-    p.run()
+    ans, yt, yp = p.run(pred=True)
+    with open('test.json', 'wt') as f:
+        json.dump({
+            'target': yt, 'predict': yp
+        }, f)

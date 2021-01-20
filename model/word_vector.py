@@ -62,7 +62,8 @@ class Word2Vector:
                 if len(line) == 2:
                     continue
 
-                word = line[0].lower()
+                word = line[0]
+                # word = line[0].lower()
                 if word2id and word not in word2id:
                     continue
                 embedding_vals = []

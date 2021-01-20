@@ -14,8 +14,7 @@ def get_sentence_parser(n_comp, scale, **kwargs):
 
 
 class Sentence:
-    def __init__(self, vectors, weights, words, which_vw=1, **kwargs):
-        self.which_vw = 1
+    def __init__(self, vectors, weights, words, **kwargs):
         self.vectors = vectors
         self.weights = weights
         self.words = words

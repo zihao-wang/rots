@@ -173,7 +173,7 @@ class WRDInterp:
 
 
 class ROTS:
-    def __init__(self, parser='binary', depth=5, preg=2, creg=0, ereg=0, coef_C=1, aggregation='last', **kwargs):
+    def __init__(self, parser='binary', margin='norm_vectors', depth=5, preg=2, creg=0, ereg=0, coef_C=1, aggregation='last', **kwargs):
         """
         Args:
             parser: type of parsers, in ['dependency', 'binary']
@@ -195,6 +195,7 @@ class ROTS:
         self.ereg = ereg
         self.coef_C = coef_C
         self.aggregation = aggregation
+        self.margin = margin
 
     def __call__(self, s1: Sentence, s2: Sentence):
         if len(s1.vectors) == 0 or len(s2.vectors) == 0:
@@ -211,15 +212,18 @@ class ROTS:
             answer = {}  # d, alignment score
             transport_plan = {}
             for d in range(self.depth):
-                # if d == 0:
-                # vectors1, weights1, tdlink1 = s1.get_level_vectors_weights(d)
-                # vectors2, weights2, tdlink2 = s2.get_level_vectors_weights(d)
-                vectors1, _a, tdlink1 = s1.get_level_vectors_weights(d)
-                vectors2, _b, tdlink2 = s2.get_level_vectors_weights(d)
+                vectors1, wvnorms1, tdlink1 = s1.get_level_vectors_weights(d)
+                vectors2, wvnorms2, tdlink2 = s2.get_level_vectors_weights(d)
                 M_cossim = cosine(vectors1, vectors2)
-                # _a = np.asarray([np.linalg.norm(v) * w for v, w in zip(vectors1, weights1)])
+                if self.margin == 'norm_vectors':
+                    _a = np.asarray([np.linalg.norm(v) for v in vectors1])
+                    _b = np.asarray([np.linalg.norm(v) for v in vectors2])
+                elif self.margin == 'vector_norms':
+                    _a = np.asarray(wvnorms1)
+                    _b = np.asarray(wvnorms2)
+                else:
+                    raise NotImplementedError
                 a = _a / np.sum(_a)
-                # _b = np.asarray([np.linalg.norm(v) * w for v, w in zip(vectors2, weights2)])
                 b = _b / np.sum(_b)
                 C = np.sum(_a) * np.sum(_b) / (np.linalg.norm(s1.sentence_vector) * np.linalg.norm(s2.sentence_vector) + 1e-3)
                 cos_prior = a.reshape(-1, 1).dot(b.reshape(1, -1))
@@ -235,16 +239,14 @@ class ROTS:
                                 for dj in tdlink2[tj]:
                                     prior_plan_down[di, dj] = mass * _a[di] * _b[dj] / local_a / local_b
                 else:
-                    # print(d)
                     prior_plan_down = cos_prior
-                M = M_cossim - np.log(cos_prior + 1e-10) * self.creg - np.log(prior_plan_down + 1e-10) * self.prior_reg[d]
+                M = M_cossim - np.log(prior_plan_down + 1e-10) * self.prior_reg[d]
                 reg = self.creg + self.prior_reg[d] + self.ereg
                 P = ot.sinkhorn(a, b, M, reg, method='sinkhorn_stabilized',numItermax=32)
                 # P = ot.emd(a, b, M)
                 # P = ot.unbalanced.sinkhorn_unbalanced(a, b, M, reg=reg, reg_m=1, method="sinkhorn_stabilized")
                 transport_plan[d] = P
-                coef_C = 0
-                answer[d] = (1 - np.sum(P * M_cossim)) * (1 - coef_C + coef_C * C)
+                answer[d] = (1 - np.sum(P * M_cossim)) * (1 - self.coef_C + self.coef_C * C)
                 # answer[d] = 1 - ot.emd2(a, b, M)
 
         if self.aggregation == 'mean':
