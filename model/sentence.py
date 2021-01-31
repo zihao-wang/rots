@@ -224,18 +224,27 @@ def proj(x, pc):
 
 
 class GeneralPCompRemoval:
-    def __init__(self, n_comp=0, scale=True, **sentence_args):
+    def __init__(self, n_comp=0, scale=True, centralize=False, **sentence_args):
         self.n_comp = n_comp
         self.p_comp_i = []
         self.lambda_i = []
         self.transfer = lambda x: x
         self.scale_flag = scale
+        self.centralize_flag = centralize
         self.sentence_args = sentence_args
 
     def scaling(self, vector_list):
         if self.scale_flag:
             vectors = np.array(vector_list)
             vectors = vectors / (np.linalg.norm(vectors, axis=0, keepdims=True) + 1e-10)
+            return [vectors[i] for i in range(len(vector_list))]
+        else:
+            return vector_list
+
+    def centralize(self, vector_list):
+        if self.centralize_flag:
+            vectors = np.array(vector_list)
+            vectors = vectors - np.mean(vectors, axis=0)
             return [vectors[i] for i in range(len(vector_list))]
         else:
             return vector_list
@@ -257,6 +266,7 @@ class GeneralPCompRemoval:
 
             sent_vec = np.zeros(300)
             word_vector_list = self.scaling([word_vector[w] for w in words])
+            word_vector_list = self.centralize(word_vector_list)
             for i, w in enumerate(words):
                 sent_vec += word_vector_list[i] * weight_scheme[w] / len(words)
             sent_vec_list.append(sent_vec)
@@ -277,6 +287,7 @@ class GeneralPCompRemoval:
         words = [dataset.word_dict[t] for t in token_list if dataset.word_dict[t] in word_vector]
         assert len(words) == len(token_list)
         vectors = self.scaling([word_vector[w] for w in words])
+        vectors = self.centralize(vectors)
         weights = [weight_scheme[w] / len(words) for w in words]
         sum_weights = sum(weights)
         for i in range(self.n_comp):

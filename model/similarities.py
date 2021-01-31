@@ -242,7 +242,10 @@ class ROTS:
                     prior_plan_down = cos_prior
                 M = M_cossim - np.log(prior_plan_down + 1e-10) * self.prior_reg[d]
                 reg = self.creg + self.prior_reg[d] + self.ereg
-                P = ot.sinkhorn(a, b, M, reg, method='sinkhorn_stabilized',numItermax=32)
+                if d == 0:
+                    P = ot.emd(a, b, M)
+                else:
+                    P = ot.sinkhorn(a, b, M, reg, method='sinkhorn_stabilized')
                 # P = ot.emd(a, b, M)
                 # P = ot.unbalanced.sinkhorn_unbalanced(a, b, M, reg=reg, reg_m=1, method="sinkhorn_stabilized")
                 transport_plan[d] = P
