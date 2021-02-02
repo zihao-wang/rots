@@ -7,7 +7,7 @@ from pprint import pprint
 from model import (get_dataset,
                    get_similarity, get_vector_convertor, get_weight_scheme,
                    get_word_vector, get_sentence_parser)
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, spearmanr
 import scikits.bootstrap as boot
 
 
@@ -101,14 +101,19 @@ class Pipeline:
             return y_pred, id_list
 
     def _evaluation_score(self, y_true:list, y_pred:list, option:str=""):
+        if option == 'spearman':
+            scoring = spearmanr
+        else:
+            scoring = pearsonr
+
         if isinstance(y_pred, list):
-            score = pearsonr(y_true, y_pred)[0]
-            left, right = boot.ci((y_true, y_pred), statfunction=lambda x, y: pearsonr(x, y)[0])
+            score = scoring(y_true, y_pred)[0]
+            left, right = boot.ci((y_true, y_pred), statfunction=lambda x, y: scoring(x, y)[0])
             return left, score, right
         elif isinstance(y_pred, dict):
             ans = {}
             for k in y_pred:
-                l, s, r = self._evaluation_score(y_true, y_pred[k])
+                l, s, r = self._evaluation_score(y_true, y_pred[k], option=option)
                 ans[k] = [l, s, r]
             return ans
 
@@ -129,9 +134,9 @@ class Pipeline:
         self.sentence_parser.update(self.word_vector, self.word_weight, self.dataset)
         print("[pipeline][preprocess] filtered out words without pretrained vectors")
 
-    def run(self, pred=False):
+    def run(self, pred=False, option='p'):
         yt, yp = self._evaluate_over_datasets()
-        ans = self._evaluation_score(yt, yp)
+        ans = self._evaluation_score(yt, yp, option=option)
         if isinstance(ans, tuple):
             l, s, r = ans
             print("{:.2f}, {:.2f}, {:.2f}".format(l*100, s*100, r*100))

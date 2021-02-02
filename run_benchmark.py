@@ -6,17 +6,17 @@ from pprint import pprint
 
 
 model = {
-    'COS+WR': "config/COS+WR.yaml",
-    'COS+SUP': "config/COS+SUP.yaml",
-    'COS+SWC': "config/COS+SWC.yaml",
-    'WRD+WR': "config/WRD+WR.yaml",
-    'WRD+SUP': "config/WRD+SUP.yaml",
-    'WRD+SWC': "config/WRD+SWC.yaml",
-    'WRD+SUP+levels': "config/WRD+SUP+levels.yaml",
-    'WRD+SWC+levels': "config/WRD+SWC+levels.yaml",
-    'WRD+WR+levels': "config/WRD+WR+levels.yaml",
-    'ROTS+WR': "config/ROTS+WR.yaml",
-    'ROTS+SUP': "config/ROTS+SUP.yaml",
+    # 'COS+WR': "config/COS+WR.yaml",
+    # 'COS+SUP': "config/COS+SUP.yaml",
+    # 'COS+SWC': "config/COS+SWC.yaml",
+    # 'WRD+WR': "config/WRD+WR.yaml",
+    # 'WRD+SUP': "config/WRD+SUP.yaml",
+    # 'WRD+SWC': "config/WRD+SWC.yaml",
+    # 'WRD+SUP+levels': "config/WRD+SUP+levels.yaml",
+    # 'WRD+SWC+levels': "config/WRD+SWC+levels.yaml",
+    # 'WRD+WR+levels': "config/WRD+WR+levels.yaml",
+    # 'ROTS+WR': "config/ROTS+WR.yaml",
+    # 'ROTS+SUP': "config/ROTS+SUP.yaml",
     'ROTS+SWC': "config/ROTS+SWC.yaml",
     # 'ROTSVNs': "config/ROTS-margin.yaml"
 }
@@ -24,7 +24,7 @@ model = {
 def run(cfg):
     p = Pipeline(cfg)
     p.preprocess()
-    return p.run()
+    return p.run(option='spearman')
 
 
 def dump(m, wv, dataset, ans, writer:Writer):
@@ -57,8 +57,8 @@ if __name__ == "__main__":
 
     for m in model:
         config_file = model[m]
-        writer = Writer(case_name="major_compare_" + m, meta={}, postfix=False)
-        for wv in VectorNames:
+        writer = Writer(case_name="major_compare_spearmanr_" + m, meta={}, postfix=False)
+        for wv in ['fasttext']:
             print(wv)
             for dataset in dataset_path_dict:
                 print('\t', dataset)
