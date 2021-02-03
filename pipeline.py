@@ -142,7 +142,7 @@ class Pipeline:
             print("{:.2f}, {:.2f}, {:.2f}".format(l*100, s*100, r*100))
         if isinstance(ans, dict):
             for k, (l, s, r) in ans.items():
-                print("{}, {:.2f}, {:.2f}, {:.2f}".format(k, l*100, s*100, r*100))
+                print("{}, {:.2f} & [{:.2f}, {:.2f}]".format(k, s*100, l*100, r*100))
         if pred:
             return ans, yt, yp
         else:
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     p = Pipeline(pipeline_config='config/default.yaml')
     p.preprocess()
     ans, yt, yp = p.run(pred=True)
-    with open('test.json', 'wt') as f:
+    with open('test-COS.json', 'wt') as f:
         json.dump({
             'target': yt, 'predict': yp
         }, f)
