@@ -100,7 +100,7 @@ class Pipeline:
         else:
             return y_pred, id_list
 
-    def _evaluation_score(self, y_true:list, y_pred:list, option:str=""):
+    def _evaluation_score(self, y_true:list, y_pred:list, option:str="", uq=False):
         if option == 'spearman':
             scoring = spearmanr
         else:
@@ -108,7 +108,10 @@ class Pipeline:
 
         if isinstance(y_pred, list):
             score = scoring(y_true, y_pred)[0]
-            left, right = boot.ci((y_true, y_pred), statfunction=lambda x, y: scoring(x, y)[0])
+            if uq:
+                left, right = boot.ci((y_true, y_pred), statfunction=lambda x, y: scoring(x, y)[0])
+            else:
+                left, right = 0, 0
             return left, score, right
         elif isinstance(y_pred, dict):
             ans = {}

@@ -15,7 +15,7 @@ model = {
     # 'WRD+SUP+levels': "config/WRD+SUP+levels.yaml",
     # 'WRD+SWC+levels': "config/WRD+SWC+levels.yaml",
     # 'WRD+WR+levels': "config/WRD+WR+levels.yaml",
-    # 'ROTS+WR': "config/ROTS+WR.yaml",
+    'ROTS+WR': "config/ROTS+WR.yaml",
     # 'ROTS+SUP': "config/ROTS+SUP.yaml",
     'ROTS+SWC': "config/ROTS+SWC.yaml",
     # 'ROTSVNs': "config/ROTS-margin.yaml"
@@ -57,8 +57,8 @@ if __name__ == "__main__":
 
     for m in model:
         config_file = model[m]
-        writer = Writer(case_name="major_compare_spearmanr_" + m, meta={}, postfix=False)
-        for wv in ['fasttext']:
+        writer = Writer(case_name="major_compare_spearmanr_paranmt_" + m, meta={}, postfix=False)
+        for wv in ['paranmt']:
             print(wv)
             for dataset in dataset_path_dict:
                 print('\t', dataset)
