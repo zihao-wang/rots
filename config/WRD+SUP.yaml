@@ -1,0 +1,28 @@
+name: WRD+SUP
+word_vector:
+  # one of [fasttext, fasttext_sw, paranmt, glove840b, glove42b, psl]
+  word_vector: paranmt
+  refresh_cache: false
+weight_scheme: usif
+similarity:
+  similarity: wrd
+vector_convertor:
+ # one of [conceptor_negation, all_but_the_top]
+ # sequence of [cn, abtt, cent, norm]
+  vec_conv: ""
+sentence_parser:
+  n_comp: 5
+  scale: true
+dataset:
+  # use - to seperate different level of the dataset
+  # all parsed in the loader function
+  # allowed names:
+  # stsb-test, stsb-dev
+  # twitter-test
+  # sick-r
+  dataset_name: "stsb:dev"
+  refresh_cache: false
+  # one of [nltk, spacy]
+  tokenizer: spacy
+  remove_stop: false
+  remove_punc: true
